@@ -3,6 +3,8 @@ package mailbox
 import (
 	"sync"
 	"sync/atomic"
+
+	"github.com/joeshaw/gengen/generic"
 )
 
 // New returns a new instance of Mailbox
@@ -11,7 +13,7 @@ func New(sz int) *Mailbox {
 		cap:  sz,
 		tail: -1,
 
-		s: make([]interface{}, sz),
+		s: make([]generic.T, sz),
 	}
 
 	// Initialize the conds
@@ -26,7 +28,7 @@ type Mailbox struct {
 	sc  *sync.Cond
 	rc  *sync.Cond
 
-	s []interface{}
+	s []generic.T
 
 	len  int
 	cap  int
@@ -59,8 +61,10 @@ START:
 	goto START
 }
 
+var empty generic.T
+
 // receive is the internal function for receiving messages
-func (m *Mailbox) receive() (msg interface{}, state StateCode) {
+func (m *Mailbox) receive() (msg generic.T, state StateCode) {
 	if !m.rWait() {
 		// Ok was returned as false, set state to closed and return
 		state = StateClosed
@@ -70,7 +74,7 @@ func (m *Mailbox) receive() (msg interface{}, state StateCode) {
 	// Set message as the current head
 	msg = m.s[m.head]
 	// Empty the current head value to avoid any retainment issues
-	m.s[m.head] = nil
+	m.s[m.head] = empty
 	// Goto the next index
 	if m.head++; m.head == m.cap {
 		// Our increment falls out of the bounds of our internal slice, reset to 0
@@ -87,7 +91,7 @@ func (m *Mailbox) receive() (msg interface{}, state StateCode) {
 }
 
 // send is the internal function used for sending messages
-func (m *Mailbox) send(msg interface{}) {
+func (m *Mailbox) send(msg generic.T) {
 CHECKFREE:
 	if m.cap-m.len == 0 {
 		// There are no vacant spots in the inbox, time to wait
@@ -113,14 +117,14 @@ CHECKFREE:
 }
 
 // Send will send a message
-func (m *Mailbox) Send(msg interface{}) {
+func (m *Mailbox) Send(msg generic.T) {
 	m.mux.Lock()
 	m.send(msg)
 	m.mux.Unlock()
 }
 
 // Batch will send a batch of messages
-func (m *Mailbox) Batch(msgs ...interface{}) {
+func (m *Mailbox) Batch(msgs ...generic.T) {
 	m.mux.Lock()
 	// Iterate through each message
 	for _, msg := range msgs {
@@ -130,7 +134,7 @@ func (m *Mailbox) Batch(msgs ...interface{}) {
 }
 
 // Receive will receive a message and state (See the "State" constants for more information)
-func (m *Mailbox) Receive() (msg interface{}, state StateCode) {
+func (m *Mailbox) Receive() (msg generic.T, state StateCode) {
 	m.mux.Lock()
 	msg, state = m.receive()
 	m.mux.Unlock()
@@ -140,8 +144,8 @@ func (m *Mailbox) Receive() (msg interface{}, state StateCode) {
 // Listen will return all current and inbound messages until either:
 //	- The mailbox is empty and closed
 //	- The end boolean is returned
-func (m *Mailbox) Listen(fn func(msg interface{}) (end bool)) (state StateCode) {
-	var msg interface{}
+func (m *Mailbox) Listen(fn func(msg generic.T) (end bool)) (state StateCode) {
+	var msg generic.T
 	m.mux.Lock()
 	// Iterate until break is called
 	for {

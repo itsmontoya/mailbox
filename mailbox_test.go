@@ -3,6 +3,8 @@ package mailbox
 import (
 	"sync"
 	"testing"
+
+	"github.com/joeshaw/gengen/generic"
 )
 
 var (
@@ -20,7 +22,7 @@ func TestMailbox(t *testing.T) {
 	mb := New(testBufSize)
 
 	go func() {
-		mb.Listen(func(item interface{}) (end bool) {
+		mb.Listen(func(item generic.T) (end bool) {
 			var (
 				v  int
 				ok bool
@@ -63,7 +65,7 @@ func BenchmarkMailbox(b *testing.B) {
 			ok bool
 		)
 
-		mb.Listen(func(item interface{}) (end bool) {
+		mb.Listen(func(item generic.T) (end bool) {
 
 			if v, ok = item.(int); !ok {
 				panic("Whoa")
@@ -91,7 +93,7 @@ func BenchmarkMailbox(b *testing.B) {
 
 func BenchmarkChannel(b *testing.B) {
 	var rwg sync.WaitGroup
-	ch := make(chan interface{}, testBufSize)
+	ch := make(chan generic.T, testBufSize)
 	rwg.Add(1)
 
 	go func() {
@@ -131,7 +133,7 @@ func BenchmarkBatchMailbox(b *testing.B) {
 	rwg.Add(1)
 
 	go func() {
-		mb.Listen(func(item interface{}) (end bool) {
+		mb.Listen(func(item generic.T) (end bool) {
 			var (
 				v  int
 				ok bool
@@ -161,7 +163,7 @@ func BenchmarkBatchMailbox(b *testing.B) {
 
 func BenchmarkBatchChannel(b *testing.B) {
 	var rwg sync.WaitGroup
-	ch := make(chan interface{}, testBufSize)
+	ch := make(chan generic.T, testBufSize)
 	rwg.Add(1)
 
 	go func() {
@@ -195,8 +197,8 @@ func BenchmarkBatchChannel(b *testing.B) {
 	b.ReportAllocs()
 }
 
-func getList(n int) (l []interface{}) {
-	l = make([]interface{}, n)
+func getList(n int) (l []generic.T) {
+	l = make([]generic.T, n)
 	for i := range l {
 		l[i] = i
 	}
