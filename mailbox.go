@@ -137,7 +137,7 @@ func (m *Mailbox) Receive() (msg interface{}, state StateCode) {
 }
 
 // Listen will return all current and inbound messages until the mailbox is closed, OR the end boolean is returned
-func (m *Mailbox) Listen(fn func(interface{}) (end bool)) (state StateCode) {
+func (m *Mailbox) Listen(fn func(msg interface{}) (end bool)) (state StateCode) {
 	var msg interface{}
 	m.mux.Lock()
 	// Iterate until break is called
