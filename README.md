@@ -1,4 +1,4 @@
-# mailbox [![GoDoc](https://godoc.org/github.com/itsmontoya/mailbox?status.svg)](https://godoc.org/github.com/mailbox/oBandit) ![Status](https://img.shields.io/badge/status-beta-yellow.svg)
+# mailbox [![GoDoc](https://godoc.org/github.com/itsmontoya/mailbox?status.svg)](https://godoc.org/github.com/itsmontoya/mailbox) ![Status](https://img.shields.io/badge/status-beta-yellow.svg)
 
 mailbox a send and receive library, it's simple with few frills. 
 
