@@ -164,7 +164,7 @@ func (m *Mailbox) Listen(fn func(interface{}) (end bool)) (state StateCode) {
 func (m *Mailbox) Close() {
 	// Attempt to set closed state to 1 (from 0)
 	if !atomic.CompareAndSwapInt32(&m.closed, 0, 1) {
-		// Already closed return early
+		// Already closed, return early
 		return
 	}
 
