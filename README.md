@@ -2,6 +2,14 @@
 
 mailbox a send and receive library, it's simple with few frills. 
 
+## Benchmarks
+```
+BenchmarkMailbox-4              20000000            85.7 ns/op         8 B/op      1 allocs/op
+BenchmarkChannel-4              10000000           175 ns/op           8 B/op      1 allocs/op
+BenchmarkBatchMailbox-4           100000         14272 ns/op           0 B/op      0 allocs/op
+BenchmarkBatchChannel-4            20000         66022 ns/op           0 B/op      0 allocs/op
+```
+
 ## Usage
 ``` go
 package main
