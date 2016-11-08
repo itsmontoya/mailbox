@@ -59,6 +59,8 @@ START:
 	goto START
 }
 
+var empty int
+
 // receive is the internal function for receiving messages
 func (m *Mailbox) receive() (msg int, state StateCode) {
 	if !m.rWait() {
@@ -85,8 +87,6 @@ func (m *Mailbox) receive() (msg int, state StateCode) {
 
 	return
 }
-
-var empty int
 
 // send is the internal function used for sending messages
 func (m *Mailbox) send(msg int) {
@@ -117,17 +117,29 @@ CHECKFREE:
 // Send will send a message
 func (m *Mailbox) Send(msg int) {
 	m.mux.Lock()
+	if m.isClosed() {
+		goto END
+	}
+
 	m.send(msg)
+
+END:
 	m.mux.Unlock()
 }
 
 // Batch will send a batch of messages
 func (m *Mailbox) Batch(msgs ...int) {
 	m.mux.Lock()
+	if m.isClosed() {
+		goto END
+	}
+
 	// Iterate through each message
 	for _, msg := range msgs {
 		m.send(msg)
 	}
+
+END:
 	m.mux.Unlock()
 }
 
