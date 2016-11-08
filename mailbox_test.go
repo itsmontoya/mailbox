@@ -55,6 +55,7 @@ func TestMailbox(t *testing.T) {
 func BenchmarkMailbox(b *testing.B) {
 	var rwg sync.WaitGroup
 	mb := New(testBufSize)
+	rwg.Add(1)
 
 	go func() {
 		var (
@@ -62,7 +63,6 @@ func BenchmarkMailbox(b *testing.B) {
 			ok bool
 		)
 
-		rwg.Add(1)
 		mb.Listen(func(item interface{}) (end bool) {
 
 			if v, ok = item.(int); !ok {
@@ -92,14 +92,13 @@ func BenchmarkMailbox(b *testing.B) {
 func BenchmarkChannel(b *testing.B) {
 	var rwg sync.WaitGroup
 	ch := make(chan interface{}, testBufSize)
+	rwg.Add(1)
 
 	go func() {
 		var (
 			v  int
 			ok bool
 		)
-
-		rwg.Add(1)
 
 		for item := range ch {
 			if v, ok = item.(int); !ok {
@@ -129,9 +128,9 @@ func BenchmarkChannel(b *testing.B) {
 func BenchmarkBatchMailbox(b *testing.B) {
 	var rwg sync.WaitGroup
 	mb := New(testBufSize)
+	rwg.Add(1)
 
 	go func() {
-		rwg.Add(1)
 		mb.Listen(func(item interface{}) (end bool) {
 			var (
 				v  int
@@ -163,10 +162,9 @@ func BenchmarkBatchMailbox(b *testing.B) {
 func BenchmarkBatchChannel(b *testing.B) {
 	var rwg sync.WaitGroup
 	ch := make(chan interface{}, testBufSize)
+	rwg.Add(1)
 
 	go func() {
-		rwg.Add(1)
-
 		for item := range ch {
 			var (
 				v  int
