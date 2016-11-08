@@ -81,6 +81,7 @@ func (m *Mailbox) receive() (msg interface{}, state StateCode) {
 		// Notify the senders that we have a vacant entry
 		m.sc.Broadcast()
 	}
+
 	return
 }
 
@@ -139,6 +140,7 @@ func (m *Mailbox) Receive() (msg interface{}, state StateCode) {
 func (m *Mailbox) Listen(fn func(interface{}) (end bool)) (state StateCode) {
 	var msg interface{}
 	m.mux.Lock()
+	// Iterate until break is called
 	for {
 		// Get message and state
 		if msg, state = m.receive(); state != StateOK {
@@ -153,6 +155,7 @@ func (m *Mailbox) Listen(fn func(interface{}) (end bool)) (state StateCode) {
 			break
 		}
 	}
+
 	m.mux.Unlock()
 	return
 }
