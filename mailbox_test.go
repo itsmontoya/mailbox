@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	testVal int
+	testVal generic.T
 
 	testBufSize = 128
 	testSet     = getList(8192)
@@ -23,16 +23,7 @@ func TestMailbox(t *testing.T) {
 
 	go func() {
 		mb.Listen(func(item generic.T) (end bool) {
-			var (
-				v  int
-				ok bool
-			)
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+			testVal = item
 			cnt++
 			return
 		})
@@ -60,18 +51,8 @@ func BenchmarkMailbox(b *testing.B) {
 	rwg.Add(1)
 
 	go func() {
-		var (
-			v  int
-			ok bool
-		)
-
 		mb.Listen(func(item generic.T) (end bool) {
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+			testVal = item
 			return
 		})
 		rwg.Done()
@@ -97,17 +78,8 @@ func BenchmarkChannel(b *testing.B) {
 	rwg.Add(1)
 
 	go func() {
-		var (
-			v  int
-			ok bool
-		)
-
 		for item := range ch {
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+			testVal = item
 		}
 
 		rwg.Done()
@@ -134,16 +106,7 @@ func BenchmarkBatchMailbox(b *testing.B) {
 
 	go func() {
 		mb.Listen(func(item generic.T) (end bool) {
-			var (
-				v  int
-				ok bool
-			)
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+			testVal = item
 			return
 		})
 		rwg.Done()
@@ -168,16 +131,7 @@ func BenchmarkBatchChannel(b *testing.B) {
 
 	go func() {
 		for item := range ch {
-			var (
-				v  int
-				ok bool
-			)
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+			testVal = item
 		}
 
 		rwg.Done()
