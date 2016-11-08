@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 )
 
-// New returns a new Mailbox
+// New returns a new instance of Mailbox
 func New(sz int) *Mailbox {
 	mb := Mailbox{
 		cap:  sz,
@@ -20,7 +20,7 @@ func New(sz int) *Mailbox {
 	return &mb
 }
 
-// Mailbox is a mailbox
+// Mailbox is used to send and receive messages
 type Mailbox struct {
 	mux sync.Mutex
 	sc  *sync.Cond
@@ -40,6 +40,7 @@ func (m *Mailbox) isClosed() bool {
 	return atomic.LoadInt32(&m.closed) == 1
 }
 
+// rWait is a wait function for receivers
 func (m *Mailbox) rWait() (ok bool) {
 START:
 	if m.len > 0 {
@@ -128,7 +129,7 @@ func (m *Mailbox) Batch(msgs ...interface{}) {
 	m.mux.Unlock()
 }
 
-// Receive will recive a message
+// Receive will receive a message and state (See the "State" constants for more information)
 func (m *Mailbox) Receive() (msg interface{}, state StateCode) {
 	m.mux.Lock()
 	msg, state = m.receive()
@@ -136,7 +137,9 @@ func (m *Mailbox) Receive() (msg interface{}, state StateCode) {
 	return
 }
 
-// Listen will return all current and inbound messages until the mailbox is closed, OR the end boolean is returned
+// Listen will return all current and inbound messages until either:
+//	- The mailbox is empty and closed
+//	- The end boolean is returned
 func (m *Mailbox) Listen(fn func(msg interface{}) (end bool)) (state StateCode) {
 	var msg interface{}
 	m.mux.Lock()
@@ -180,10 +183,11 @@ type StateCode uint8
 const (
 	// StateOK is returned when the request was OK
 	StateOK StateCode = iota
-	// StateEmpty is returned when the request was OK
+	// StateEmpty is returned when the request was empty
+	// Note: This will be used when the reject option is implemented
 	StateEmpty
 	// StateEnded is returned when the client ends a listening
 	StateEnded
-	// StateClosed is returned when the request was OK
+	// StateClosed is returned when the calling mailbox is closed
 	StateClosed
 )
