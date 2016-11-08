@@ -6,18 +6,18 @@ import (
 )
 
 var (
-	testSet   = getList(8192)
-	testVal   int
-	testBatch = getList(512)
+	testVal int
 
-	bufSize = 128
+	testBufSize = 128
+	testSet     = getList(8192)
+	testBatch   = getList(512)
 )
 
 func TestMailbox(t *testing.T) {
 	var wg sync.WaitGroup
 	var cnt int
 	wg.Add(2)
-	mb := New(bufSize)
+	mb := New(testBufSize)
 
 	go func() {
 		mb.Listen(func(item interface{}) (end bool) {
@@ -54,7 +54,7 @@ func TestMailbox(t *testing.T) {
 
 func BenchmarkMailbox(b *testing.B) {
 	var rwg sync.WaitGroup
-	mb := New(bufSize)
+	mb := New(testBufSize)
 
 	go func() {
 		var (
@@ -91,7 +91,7 @@ func BenchmarkMailbox(b *testing.B) {
 
 func BenchmarkChannel(b *testing.B) {
 	var rwg sync.WaitGroup
-	ch := make(chan interface{}, bufSize)
+	ch := make(chan interface{}, testBufSize)
 
 	go func() {
 		var (
@@ -128,7 +128,7 @@ func BenchmarkChannel(b *testing.B) {
 
 func BenchmarkBatchMailbox(b *testing.B) {
 	var rwg sync.WaitGroup
-	mb := New(bufSize)
+	mb := New(testBufSize)
 
 	go func() {
 		rwg.Add(1)
@@ -162,7 +162,7 @@ func BenchmarkBatchMailbox(b *testing.B) {
 
 func BenchmarkBatchChannel(b *testing.B) {
 	var rwg sync.WaitGroup
-	ch := make(chan interface{}, bufSize)
+	ch := make(chan interface{}, testBufSize)
 
 	go func() {
 		rwg.Add(1)
