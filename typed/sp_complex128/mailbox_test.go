@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	testVal int
+	testVal []*complex128
 
 	testBufSize = 128
 	testSet     = getList(8192)
@@ -20,17 +20,8 @@ func TestMailbox(t *testing.T) {
 	mb := New(testBufSize)
 
 	go func() {
-		mb.Listen(func(item interface{}) (end bool) {
-			var (
-				v  int
-				ok bool
-			)
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+		mb.Listen(func(item []*complex128) (end bool) {
+			testVal = item
 			cnt++
 			return
 		})
@@ -58,28 +49,17 @@ func BenchmarkMailbox(b *testing.B) {
 	rwg.Add(1)
 
 	go func() {
-		var (
-			v  int
-			ok bool
-		)
-
-		mb.Listen(func(item interface{}) (end bool) {
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+		mb.Listen(func(item []*complex128) (end bool) {
+			testVal = item
 			return
 		})
 		rwg.Done()
 	}()
 
 	b.RunParallel(func(pb *testing.PB) {
-		var i int
+		var i []*complex128
 		for pb.Next() {
 			mb.Send(i)
-			i++
 		}
 	})
 
@@ -91,31 +71,21 @@ func BenchmarkMailbox(b *testing.B) {
 
 func BenchmarkChannel(b *testing.B) {
 	var rwg sync.WaitGroup
-	ch := make(chan interface{}, testBufSize)
+	ch := make(chan []*complex128, testBufSize)
 	rwg.Add(1)
 
 	go func() {
-		var (
-			v  int
-			ok bool
-		)
-
 		for item := range ch {
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+			testVal = item
 		}
 
 		rwg.Done()
 	}()
 
 	b.RunParallel(func(pb *testing.PB) {
-		var i int
+		var i []*complex128
 		for pb.Next() {
 			ch <- i
-			i++
 		}
 	})
 
@@ -131,17 +101,8 @@ func BenchmarkBatchMailbox(b *testing.B) {
 	rwg.Add(1)
 
 	go func() {
-		mb.Listen(func(item interface{}) (end bool) {
-			var (
-				v  int
-				ok bool
-			)
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+		mb.Listen(func(item []*complex128) (end bool) {
+			testVal = item
 			return
 		})
 		rwg.Done()
@@ -161,21 +122,12 @@ func BenchmarkBatchMailbox(b *testing.B) {
 
 func BenchmarkBatchChannel(b *testing.B) {
 	var rwg sync.WaitGroup
-	ch := make(chan interface{}, testBufSize)
+	ch := make(chan []*complex128, testBufSize)
 	rwg.Add(1)
 
 	go func() {
 		for item := range ch {
-			var (
-				v  int
-				ok bool
-			)
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+			testVal = item
 		}
 
 		rwg.Done()
@@ -195,10 +147,10 @@ func BenchmarkBatchChannel(b *testing.B) {
 	b.ReportAllocs()
 }
 
-func getList(n int) (l []interface{}) {
-	l = make([]interface{}, n)
+func getList(n int) (l [][]*complex128) {
+	l = make([][]*complex128, n)
 	for i := range l {
-		l[i] = i
+		l[i] = empty
 	}
 
 	return

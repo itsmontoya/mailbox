@@ -11,7 +11,7 @@ func New(sz int) *Mailbox {
 		cap:  sz,
 		tail: -1,
 
-		s: make([]interface{}, sz),
+		s: make([][]*uint8, sz),
 	}
 
 	// Initialize the conds
@@ -20,13 +20,23 @@ func New(sz int) *Mailbox {
 	return &mb
 }
 
+// MailboxIface defines the behaviour of a mailbox, it can be implemented
+// with a different type of elements.
+type MailboxIface interface {
+	Send(msg []*uint8)
+	Batch(msgs ...[]*uint8)
+	Receive() (msg []*uint8, state StateCode)
+	Listen(fn func(msg []*uint8) (end bool)) (state StateCode)
+	Close()
+}
+
 // Mailbox is used to send and receive messages
 type Mailbox struct {
 	mux sync.Mutex
 	sc  *sync.Cond
 	rc  *sync.Cond
 
-	s []interface{}
+	s [][]*uint8
 
 	len  int
 	cap  int
@@ -59,8 +69,10 @@ START:
 	goto START
 }
 
+var empty []*uint8
+
 // receive is the internal function for receiving messages
-func (m *Mailbox) receive() (msg interface{}, state StateCode) {
+func (m *Mailbox) receive() (msg []*uint8, state StateCode) {
 	if !m.rWait() {
 		// Ok was returned as false, set state to closed and return
 		state = StateClosed
@@ -70,7 +82,7 @@ func (m *Mailbox) receive() (msg interface{}, state StateCode) {
 	// Set message as the current head
 	msg = m.s[m.head]
 	// Empty the current head value to avoid any retainment issues
-	m.s[m.head] = nil
+	m.s[m.head] = empty
 	// Goto the next index
 	if m.head++; m.head == m.cap {
 		// Our increment falls out of the bounds of our internal slice, reset to 0
@@ -87,7 +99,7 @@ func (m *Mailbox) receive() (msg interface{}, state StateCode) {
 }
 
 // send is the internal function used for sending messages
-func (m *Mailbox) send(msg interface{}) {
+func (m *Mailbox) send(msg []*uint8) {
 CHECKFREE:
 	if m.cap-m.len == 0 {
 		// There are no vacant spots in the inbox, time to wait
@@ -113,7 +125,7 @@ CHECKFREE:
 }
 
 // Send will send a message
-func (m *Mailbox) Send(msg interface{}) {
+func (m *Mailbox) Send(msg []*uint8) {
 	m.mux.Lock()
 	if m.isClosed() {
 		goto END
@@ -126,7 +138,7 @@ END:
 }
 
 // Batch will send a batch of messages
-func (m *Mailbox) Batch(msgs ...interface{}) {
+func (m *Mailbox) Batch(msgs ...[]*uint8) {
 	m.mux.Lock()
 	if m.isClosed() {
 		goto END
@@ -142,7 +154,7 @@ END:
 }
 
 // Receive will receive a message and state (See the "State" constants for more information)
-func (m *Mailbox) Receive() (msg interface{}, state StateCode) {
+func (m *Mailbox) Receive() (msg []*uint8, state StateCode) {
 	m.mux.Lock()
 	msg, state = m.receive()
 	m.mux.Unlock()
@@ -152,8 +164,8 @@ func (m *Mailbox) Receive() (msg interface{}, state StateCode) {
 // Listen will return all current and inbound messages until either:
 //	- The mailbox is empty and closed
 //	- The end boolean is returned
-func (m *Mailbox) Listen(fn func(msg interface{}) (end bool)) (state StateCode) {
-	var msg interface{}
+func (m *Mailbox) Listen(fn func(msg []*uint8) (end bool)) (state StateCode) {
+	var msg []*uint8
 	m.mux.Lock()
 	// Iterate until break is called
 	for {

@@ -20,17 +20,8 @@ func TestMailbox(t *testing.T) {
 	mb := New(testBufSize)
 
 	go func() {
-		mb.Listen(func(item interface{}) (end bool) {
-			var (
-				v  int
-				ok bool
-			)
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+		mb.Listen(func(item int) (end bool) {
+			testVal = item
 			cnt++
 			return
 		})
@@ -58,18 +49,8 @@ func BenchmarkMailbox(b *testing.B) {
 	rwg.Add(1)
 
 	go func() {
-		var (
-			v  int
-			ok bool
-		)
-
-		mb.Listen(func(item interface{}) (end bool) {
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+		mb.Listen(func(item int) (end bool) {
+			testVal = item
 			return
 		})
 		rwg.Done()
@@ -79,7 +60,6 @@ func BenchmarkMailbox(b *testing.B) {
 		var i int
 		for pb.Next() {
 			mb.Send(i)
-			i++
 		}
 	})
 
@@ -91,21 +71,12 @@ func BenchmarkMailbox(b *testing.B) {
 
 func BenchmarkChannel(b *testing.B) {
 	var rwg sync.WaitGroup
-	ch := make(chan interface{}, testBufSize)
+	ch := make(chan int, testBufSize)
 	rwg.Add(1)
 
 	go func() {
-		var (
-			v  int
-			ok bool
-		)
-
 		for item := range ch {
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+			testVal = item
 		}
 
 		rwg.Done()
@@ -115,7 +86,6 @@ func BenchmarkChannel(b *testing.B) {
 		var i int
 		for pb.Next() {
 			ch <- i
-			i++
 		}
 	})
 
@@ -131,17 +101,8 @@ func BenchmarkBatchMailbox(b *testing.B) {
 	rwg.Add(1)
 
 	go func() {
-		mb.Listen(func(item interface{}) (end bool) {
-			var (
-				v  int
-				ok bool
-			)
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+		mb.Listen(func(item int) (end bool) {
+			testVal = item
 			return
 		})
 		rwg.Done()
@@ -161,21 +122,12 @@ func BenchmarkBatchMailbox(b *testing.B) {
 
 func BenchmarkBatchChannel(b *testing.B) {
 	var rwg sync.WaitGroup
-	ch := make(chan interface{}, testBufSize)
+	ch := make(chan int, testBufSize)
 	rwg.Add(1)
 
 	go func() {
 		for item := range ch {
-			var (
-				v  int
-				ok bool
-			)
-
-			if v, ok = item.(int); !ok {
-				panic("Whoa")
-			}
-
-			testVal = v
+			testVal = item
 		}
 
 		rwg.Done()
@@ -195,10 +147,10 @@ func BenchmarkBatchChannel(b *testing.B) {
 	b.ReportAllocs()
 }
 
-func getList(n int) (l []interface{}) {
-	l = make([]interface{}, n)
+func getList(n int) (l []int) {
+	l = make([]int, n)
 	for i := range l {
-		l[i] = i
+		l[i] = empty
 	}
 
 	return
