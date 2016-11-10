@@ -59,10 +59,9 @@ func BenchmarkMailbox(b *testing.B) {
 	}()
 
 	b.RunParallel(func(pb *testing.PB) {
-		var i int
+		var i generic.T
 		for pb.Next() {
 			mb.Send(i)
-			i++
 		}
 	})
 
@@ -86,10 +85,9 @@ func BenchmarkChannel(b *testing.B) {
 	}()
 
 	b.RunParallel(func(pb *testing.PB) {
-		var i int
+		var i generic.T
 		for pb.Next() {
 			ch <- i
-			i++
 		}
 	})
 
@@ -154,7 +152,7 @@ func BenchmarkBatchChannel(b *testing.B) {
 func getList(n int) (l []generic.T) {
 	l = make([]generic.T, n)
 	for i := range l {
-		l[i] = i
+		l[i] = empty
 	}
 
 	return
