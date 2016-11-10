@@ -22,6 +22,16 @@ func New(sz int) *Mailbox {
 	return &mb
 }
 
+// MailboxIface defines the behaviour of a mailbox, it can be implemented
+// with a different type of elements.
+type MailboxIface interface {
+	Send(msg generic.T)
+	Batch(msgs ...generic.T)
+	Receive() (msg generic.T, state StateCode)
+	Listen(fn func(msg generic.T) (end bool)) (state StateCode)
+	Close()
+}
+
 // Mailbox is used to send and receive messages
 type Mailbox struct {
 	mux sync.Mutex
