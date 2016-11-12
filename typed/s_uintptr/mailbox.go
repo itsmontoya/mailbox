@@ -3,8 +3,6 @@ package mailbox
 import (
 	"sync"
 	"sync/atomic"
-
-	"github.com/joeshaw/gengen/generic"
 )
 
 // New returns a new instance of Mailbox
@@ -13,7 +11,7 @@ func New(sz int) *Mailbox {
 		cap:  sz,
 		tail: -1,
 
-		s: make([]generic.T, sz),
+		s: make([][]uintptr, sz),
 	}
 
 	// Initialize the conds
@@ -25,10 +23,10 @@ func New(sz int) *Mailbox {
 // MailboxIface defines the behaviour of a mailbox, it can be implemented
 // with a different type of elements.
 type MailboxIface interface {
-	Send(msg generic.T)
-	Batch(msgs ...generic.T)
-	Receive() (msg generic.T, state StateCode)
-	Listen(fn func(msg generic.T) (end bool)) (state StateCode)
+	Send(msg []uintptr)
+	Batch(msgs ...[]uintptr)
+	Receive() (msg []uintptr, state StateCode)
+	Listen(fn func(msg []uintptr) (end bool)) (state StateCode)
 	Close()
 }
 
@@ -38,7 +36,7 @@ type Mailbox struct {
 	sc  *sync.Cond
 	rc  *sync.Cond
 
-	s []generic.T
+	s [][]uintptr
 
 	len  int
 	cap  int
@@ -71,10 +69,10 @@ START:
 	goto START
 }
 
-var empty generic.T
+var empty []uintptr
 
 // receive is the internal function for receiving messages
-func (m *Mailbox) receive() (msg generic.T, state StateCode) {
+func (m *Mailbox) receive() (msg []uintptr, state StateCode) {
 	if !m.rWait() {
 		// Ok was returned as false, set state to closed and return
 		state = StateClosed
@@ -101,7 +99,7 @@ func (m *Mailbox) receive() (msg generic.T, state StateCode) {
 }
 
 // send is the internal function used for sending messages
-func (m *Mailbox) send(msg generic.T) {
+func (m *Mailbox) send(msg []uintptr) {
 CHECKFREE:
 	if m.cap-m.len == 0 {
 		// There are no vacant spots in the inbox, time to wait
@@ -127,7 +125,7 @@ CHECKFREE:
 }
 
 // Send will send a message
-func (m *Mailbox) Send(msg generic.T) {
+func (m *Mailbox) Send(msg []uintptr) {
 	m.mux.Lock()
 	if m.isClosed() {
 		goto END
@@ -140,7 +138,7 @@ END:
 }
 
 // Batch will send a batch of messages
-func (m *Mailbox) Batch(msgs ...generic.T) {
+func (m *Mailbox) Batch(msgs ...[]uintptr) {
 	m.mux.Lock()
 	if m.isClosed() {
 		goto END
@@ -156,7 +154,7 @@ END:
 }
 
 // Receive will receive a message and state (See the "State" constants for more information)
-func (m *Mailbox) Receive() (msg generic.T, state StateCode) {
+func (m *Mailbox) Receive() (msg []uintptr, state StateCode) {
 	m.mux.Lock()
 	msg, state = m.receive()
 	m.mux.Unlock()
@@ -166,8 +164,8 @@ func (m *Mailbox) Receive() (msg generic.T, state StateCode) {
 // Listen will return all current and inbound messages until either:
 //	- The mailbox is empty and closed
 //	- The end boolean is returned
-func (m *Mailbox) Listen(fn func(msg generic.T) (end bool)) (state StateCode) {
-	var msg generic.T
+func (m *Mailbox) Listen(fn func(msg []uintptr) (end bool)) (state StateCode) {
+	var msg []uintptr
 	m.mux.Lock()
 	// Iterate until break is called
 	for {

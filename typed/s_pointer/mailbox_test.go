@@ -3,12 +3,11 @@ package mailbox
 import (
 	"sync"
 	"testing"
-
-	"github.com/joeshaw/gengen/generic"
+	"unsafe"
 )
 
 var (
-	testVal generic.T
+	testVal []unsafe.Pointer
 
 	testBufSize = 128
 	testSet     = getList(8192)
@@ -22,7 +21,7 @@ func TestMailbox(t *testing.T) {
 	mb := New(testBufSize)
 
 	go func() {
-		mb.Listen(func(item generic.T) (end bool) {
+		mb.Listen(func(item []unsafe.Pointer) (end bool) {
 			testVal = item
 			cnt++
 			return
@@ -51,7 +50,7 @@ func BenchmarkMailbox(b *testing.B) {
 	rwg.Add(1)
 
 	go func() {
-		mb.Listen(func(item generic.T) (end bool) {
+		mb.Listen(func(item []unsafe.Pointer) (end bool) {
 			testVal = item
 			return
 		})
@@ -59,7 +58,7 @@ func BenchmarkMailbox(b *testing.B) {
 	}()
 
 	b.RunParallel(func(pb *testing.PB) {
-		var i generic.T
+		var i []unsafe.Pointer
 		for pb.Next() {
 			mb.Send(i)
 		}
@@ -73,7 +72,7 @@ func BenchmarkMailbox(b *testing.B) {
 
 func BenchmarkChannel(b *testing.B) {
 	var rwg sync.WaitGroup
-	ch := make(chan generic.T, testBufSize)
+	ch := make(chan []unsafe.Pointer, testBufSize)
 	rwg.Add(1)
 
 	go func() {
@@ -85,7 +84,7 @@ func BenchmarkChannel(b *testing.B) {
 	}()
 
 	b.RunParallel(func(pb *testing.PB) {
-		var i generic.T
+		var i []unsafe.Pointer
 		for pb.Next() {
 			ch <- i
 		}
@@ -103,7 +102,7 @@ func BenchmarkBatchMailbox(b *testing.B) {
 	rwg.Add(1)
 
 	go func() {
-		mb.Listen(func(item generic.T) (end bool) {
+		mb.Listen(func(item []unsafe.Pointer) (end bool) {
 			testVal = item
 			return
 		})
@@ -124,7 +123,7 @@ func BenchmarkBatchMailbox(b *testing.B) {
 
 func BenchmarkBatchChannel(b *testing.B) {
 	var rwg sync.WaitGroup
-	ch := make(chan generic.T, testBufSize)
+	ch := make(chan []unsafe.Pointer, testBufSize)
 	rwg.Add(1)
 
 	go func() {
@@ -149,8 +148,8 @@ func BenchmarkBatchChannel(b *testing.B) {
 	b.ReportAllocs()
 }
 
-func getList(n int) (l []generic.T) {
-	l = make([]generic.T, n)
+func getList(n int) (l [][]unsafe.Pointer) {
+	l = make([][]unsafe.Pointer, n)
 	for i := range l {
 		l[i] = empty
 	}
