@@ -66,6 +66,26 @@ func TestMailboxNoWait(t *testing.T) {
 		t.Fatal("Invalid state code returned")
 		return
 	}
+
+	if _, state := mb.Receive(false); state != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if _, state := mb.Receive(false); state != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if _, state := mb.Receive(false); state != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if _, state := mb.Receive(false); state != StateEmpty {
+		t.Fatal("Invalid state code returned")
+		return
+	}
 }
 
 func BenchmarkMailbox(b *testing.B) {
