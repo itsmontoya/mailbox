@@ -43,27 +43,31 @@ func (m *Mailbox) isClosed() bool {
 }
 
 // rWait is a wait function for receivers
-func (m *Mailbox) rWait(wait bool) (ok bool) {
+func (m *Mailbox) rWait(wait bool) (state StateCode) {
 	for m.len == 0 {
-		if !wait || m.isClosed() {
-			// We aren't waiting for new message OR we have an empty inbox AND we are closed
-			return false
+		if m.isClosed() {
+			// Our inbox is empty AND closed, return StateClosed
+			return StateClosed
+		}
+
+		if !wait {
+			// We aren't waiting for new messages, return StateEmpty
+			return StateEmpty
 		}
 
 		// Let's wait for a signal..
 		m.rc.Wait()
 	}
 
-	return true
+	// We waited for an available message, return StateOK
+	return
 }
 
 var empty generic.T
 
 // receive is the internal function for receiving messages
 func (m *Mailbox) receive(wait bool) (msg generic.T, state StateCode) {
-	if !m.rWait(wait) {
-		// Ok was returned as false, set state to closed and return
-		state = StateClosed
+	if state = m.rWait(wait); state != StateOK {
 		return
 	}
 
@@ -86,25 +90,25 @@ func (m *Mailbox) receive(wait bool) (msg generic.T, state StateCode) {
 	return
 }
 
-func (m *Mailbox) sWait(wait bool) (ok bool) {
+func (m *Mailbox) sWait(wait bool) (state StateCode) {
 	for m.cap-m.len == 0 {
 		if !wait {
-			return false
+			return StateFull
 		}
 
 		// There are no vacant spots in the inbox, time to wait
 		m.sc.Wait()
 	}
 
-	return true
+	// An entry is available, return StateOK
+	return
 }
 
-// send is the internal function used for sending messages
-// If the list is full:
+// send is the internal function used for sending messages, if the list is full:
 //  - If wait is true, will wait for an available space
-//  - Else, will return will early with OK equaling false
-func (m *Mailbox) send(msg generic.T, wait bool) (ok bool) {
-	if ok = m.sWait(wait); !ok {
+//  - Else, will return will early with a state of StateFull
+func (m *Mailbox) send(msg generic.T, wait bool) (state StateCode) {
+	if state = m.sWait(wait); state != StateOK {
 		return
 	}
 
@@ -145,13 +149,13 @@ func (m *Mailbox) incLen() {
 }
 
 // Send will send a message
-func (m *Mailbox) Send(msg generic.T, wait bool) (ok bool) {
+func (m *Mailbox) Send(msg generic.T, wait bool) (state StateCode) {
 	m.mux.Lock()
 	if m.isClosed() {
 		goto END
 	}
 
-	ok = m.send(msg, wait)
+	state = m.send(msg, wait)
 
 END:
 	m.mux.Unlock()
