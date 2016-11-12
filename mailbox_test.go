@@ -45,6 +45,29 @@ func TestMailbox(t *testing.T) {
 	}
 }
 
+func TestMailboxNoWait(t *testing.T) {
+	mb := New(3)
+	if mb.Send(1, false) != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if mb.Send(1, false) != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if mb.Send(1, false) != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if mb.Send(1, false) != StateFull {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+}
+
 func BenchmarkMailbox(b *testing.B) {
 	var rwg sync.WaitGroup
 	mb := New(testBufSize)
