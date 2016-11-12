@@ -33,7 +33,7 @@ func TestMailbox(t *testing.T) {
 
 	go func() {
 		for _, si := range testSet {
-			mb.Send(si)
+			mb.Send(si, true)
 		}
 		mb.Close()
 		wg.Done()
@@ -61,7 +61,7 @@ func BenchmarkMailbox(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var i generic.T
 		for pb.Next() {
-			mb.Send(i)
+			mb.Send(i, true)
 		}
 	})
 
