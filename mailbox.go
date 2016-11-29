@@ -22,16 +22,6 @@ func New(sz int) *Mailbox {
 	return &mb
 }
 
-// MailboxIface defines the behaviour of a mailbox, it can be implemented
-// with a different type of elements.
-type MailboxIface interface {
-	Send(msg generic.T)
-	Batch(msgs ...generic.T)
-	Receive() (msg generic.T, state StateCode)
-	Listen(fn func(msg generic.T) (end bool)) (state StateCode)
-	Close()
-}
-
 // Mailbox is used to send and receive messages
 type Mailbox struct {
 	mux sync.Mutex
@@ -53,31 +43,31 @@ func (m *Mailbox) isClosed() bool {
 }
 
 // rWait is a wait function for receivers
-func (m *Mailbox) rWait() (ok bool) {
-START:
-	if m.len > 0 {
-		// We have at least one unread message, return true
-		return true
+func (m *Mailbox) rWait(wait bool) (state StateCode) {
+	for m.len == 0 {
+		if m.isClosed() {
+			// Our inbox is empty AND closed, return StateClosed
+			return StateClosed
+		}
+
+		if !wait {
+			// We aren't waiting for new messages, return StateEmpty
+			return StateEmpty
+		}
+
+		// Let's wait for a signal..
+		m.rc.Wait()
 	}
 
-	if m.isClosed() {
-		// We have an empty inbox AND we are closed, done bro - done.
-		return false
-	}
-
-	// Let's wait for a signal..
-	m.rc.Wait()
-	// Signal received, let's check again!
-	goto START
+	// We waited for an available message, return StateOK
+	return
 }
 
 var empty generic.T
 
 // receive is the internal function for receiving messages
-func (m *Mailbox) receive() (msg generic.T, state StateCode) {
-	if !m.rWait() {
-		// Ok was returned as false, set state to closed and return
-		state = StateClosed
+func (m *Mailbox) receive(wait bool) (msg generic.T, state StateCode) {
+	if state = m.rWait(wait); state != StateOK {
 		return
 	}
 
@@ -100,25 +90,57 @@ func (m *Mailbox) receive() (msg generic.T, state StateCode) {
 	return
 }
 
-// send is the internal function used for sending messages
-func (m *Mailbox) send(msg generic.T) {
-CHECKFREE:
-	if m.cap-m.len == 0 {
+func (m *Mailbox) sWait(wait bool) (state StateCode) {
+	for m.cap-m.len == 0 {
+		if !wait {
+			return StateFull
+		}
+
 		// There are no vacant spots in the inbox, time to wait
 		m.sc.Wait()
-		// We received a signal, check again!
-		goto CHECKFREE
 	}
 
+	// An entry is available, return StateOK
+	return
+}
+
+// send is the internal function used for sending messages, if the list is full:
+//  - If wait is true, will wait for an available space
+//  - Else, will return will early with a state of StateFull
+func (m *Mailbox) send(msg generic.T, wait bool) (state StateCode) {
+	if state = m.sWait(wait); state != StateOK {
+		return
+	}
+
+	// Increment tail index
+	m.incTail()
+	// Send the new tail as the provided message
+	m.s[m.tail] = msg
+	// Increment the length
+	m.incLen()
+	return
+}
+
+// pop will append a new message to the end of the list
+// If the list is full, the oldest message will be overwritten
+func (m *Mailbox) pop(msg generic.T) {
+	// Increment tail index
+	m.incTail()
+	// Send the new tail as the provided message
+	m.s[m.tail] = msg
+	// Increment the length
+	m.incLen()
+}
+
+func (m *Mailbox) incTail() {
 	// Goto the next index
 	if m.tail++; m.tail == m.cap {
 		// Our increment falls out of the bounds of our internal slice, reset to 0
 		m.tail = 0
 	}
+}
 
-	// Send the new tail as the provided message
-	m.s[m.tail] = msg
-
+func (m *Mailbox) incLen() {
 	// Increment the length
 	if m.len++; m.len == 1 {
 		// Notify the receivers that we new message
@@ -127,16 +149,17 @@ CHECKFREE:
 }
 
 // Send will send a message
-func (m *Mailbox) Send(msg generic.T) {
+func (m *Mailbox) Send(msg generic.T, wait bool) (state StateCode) {
 	m.mux.Lock()
 	if m.isClosed() {
 		goto END
 	}
 
-	m.send(msg)
+	state = m.send(msg, wait)
 
 END:
 	m.mux.Unlock()
+	return
 }
 
 // Batch will send a batch of messages
@@ -148,7 +171,7 @@ func (m *Mailbox) Batch(msgs ...generic.T) {
 
 	// Iterate through each message
 	for _, msg := range msgs {
-		m.send(msg)
+		m.send(msg, true)
 	}
 
 END:
@@ -156,9 +179,9 @@ END:
 }
 
 // Receive will receive a message and state (See the "State" constants for more information)
-func (m *Mailbox) Receive() (msg generic.T, state StateCode) {
+func (m *Mailbox) Receive(wait bool) (msg generic.T, state StateCode) {
 	m.mux.Lock()
-	msg, state = m.receive()
+	msg, state = m.receive(wait)
 	m.mux.Unlock()
 	return
 }
@@ -172,7 +195,7 @@ func (m *Mailbox) Listen(fn func(msg generic.T) (end bool)) (state StateCode) {
 	// Iterate until break is called
 	for {
 		// Get message and state
-		if msg, state = m.receive(); state != StateOK {
+		if msg, state = m.receive(true); state != StateOK {
 			// Receiving was not successful, break
 			break
 		}
@@ -212,8 +235,20 @@ const (
 	// StateEmpty is returned when the request was empty
 	// Note: This will be used when the reject option is implemented
 	StateEmpty
+	// StateFull is returned when a receiving channel is full and wait is false for sending
+	StateFull
 	// StateEnded is returned when the client ends a listening
 	StateEnded
 	// StateClosed is returned when the calling mailbox is closed
 	StateClosed
 )
+
+// Interface defines the behaviour of a mailbox, it can be implemented
+// with a different type of elements.
+type Interface interface {
+	Send(msg generic.T, wait bool)
+	Batch(msgs ...generic.T)
+	Receive(wait bool) (msg generic.T, state StateCode)
+	Listen(fn func(msg generic.T) (end bool)) (state StateCode)
+	Close()
+}

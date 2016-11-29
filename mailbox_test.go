@@ -33,7 +33,7 @@ func TestMailbox(t *testing.T) {
 
 	go func() {
 		for _, si := range testSet {
-			mb.Send(si)
+			mb.Send(si, true)
 		}
 		mb.Close()
 		wg.Done()
@@ -42,6 +42,49 @@ func TestMailbox(t *testing.T) {
 	wg.Wait()
 	if cnt != len(testSet) {
 		t.Fatal("Errr cnt", cnt)
+	}
+}
+
+func TestMailboxNoWait(t *testing.T) {
+	mb := New(3)
+	if mb.Send(1, false) != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if mb.Send(1, false) != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if mb.Send(1, false) != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if mb.Send(1, false) != StateFull {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if _, state := mb.Receive(false); state != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if _, state := mb.Receive(false); state != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if _, state := mb.Receive(false); state != StateOK {
+		t.Fatal("Invalid state code returned")
+		return
+	}
+
+	if _, state := mb.Receive(false); state != StateEmpty {
+		t.Fatal("Invalid state code returned")
+		return
 	}
 }
 
@@ -61,7 +104,7 @@ func BenchmarkMailbox(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var i generic.T
 		for pb.Next() {
-			mb.Send(i)
+			mb.Send(i, true)
 		}
 	})
 
